@@ -18,7 +18,6 @@ import android.widget.ProgressBar;
 import net.hockeyapp.android.CrashManager;
 import net.hockeyapp.android.Tracking;
 import net.hockeyapp.android.UpdateManager;
-import net.hockeyapp.android.metrics.MetricsManager;
 
 import java.io.IOException;
 import java.net.URL;
@@ -42,17 +41,17 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mLoadingIndicator = (ProgressBar) findViewById(R.id.pb_loading_indicator);
+        initLoadingIndicator();
+
         mButton1 = (Button) findViewById(R.id.button_one);
         mButton2 = (Button) findViewById(R.id.button_two);
         mButton3 = (Button) findViewById(R.id.button_three);
         mButton4 = (Button) findViewById(R.id.button_four);
 
         if (savedInstanceState != null) {
-            boolean isLoading = savedInstanceState.getBoolean(getString(R.string.is_loading_bundle_key));
-            if (isLoading) {
-                mLoadingIndicator.setVisibility(View.VISIBLE);
-                turnButtons(false);
+            boolean isLoadingStarted = savedInstanceState.getBoolean(getString(R.string.is_loading_bundle_key));
+            if (isLoadingStarted) {
+                showLoadingIndicatorAndHideButtons();
             }
         }
 
@@ -84,7 +83,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putBoolean(getString(R.string.is_loading_bundle_key), mLoadingIndicator.getVisibility() == View.VISIBLE);
+        boolean isLoadingStarted = getSupportLoaderManager().getLoader(GET_REQUEST_LOADER_ID).isStarted();
+        outState.putBoolean(getString(R.string.is_loading_bundle_key), isLoadingStarted);
     }
 
     @Override
@@ -110,9 +110,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 if (args == null) {
                     return;
                 }
+                Log.i(TAG, "onCreateLoader() with url");
 
-                mLoadingIndicator.setVisibility(View.VISIBLE);
-                turnButtons(false);
+                mGetResponse = null; // сбрасываем кэш;
+                showLoadingIndicatorAndHideButtons();
 
                 if (mGetResponse != null) {
                     deliverResult(mGetResponse);
@@ -124,10 +125,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             @Override
             public String loadInBackground() {
                 String queryUrlString = args.getString(getString(R.string.get_request_query_key));
-                Log.i(TAG, queryUrlString);
                 if (queryUrlString == null || TextUtils.isEmpty(queryUrlString)) {
                     return null;
                 }
+                Log.i(TAG, "loadInBackground() " + queryUrlString);
 
                 try {
                     URL url = new URL(queryUrlString);
@@ -140,6 +141,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
             @Override
             public void deliverResult(String getResponse) {
+                Log.i(TAG, "deliverResult()");
                 mGetResponse = getResponse;
                 super.deliverResult(getResponse);
             }
@@ -148,13 +150,12 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     @Override
     public void onLoadFinished(Loader<String> loader, String response) {
-
-        mLoadingIndicator.setVisibility(View.INVISIBLE);
-        turnButtons(true);
+        Log.i(TAG, "onLoadFinished() " + response);
+        hideLoadingIndicatorAndShowButtons();
 
         if (response == null) {
-           Snackbar.make(findViewById(R.id.activity_main), getString(R.string.connection_error), Snackbar.LENGTH_LONG)
-                   .show();
+            Snackbar.make(findViewById(R.id.activity_main), getString(R.string.connection_error), Snackbar.LENGTH_LONG)
+                    .show();
         } else {
             // TODO: 03.04.2017 show/send response
         }
@@ -162,7 +163,31 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     @Override
     public void onLoaderReset(Loader<String> loader) {
+        Log.i(TAG, "onLoaderReset()");
         // do nothing
+    }
+
+    private void initLoadingIndicator() {
+        mLoadingIndicator = (ProgressBar) findViewById(R.id.pb_loading_indicator);
+        mLoadingIndicator.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hideLoadingIndicatorAndShowButtons();
+
+                final boolean isLoaderCanceled = getSupportLoaderManager().getLoader(GET_REQUEST_LOADER_ID).cancelLoad();
+                Log.e(TAG, "Loader is canceled: " + isLoaderCanceled);
+            }
+        });
+    }
+
+    private void showLoadingIndicatorAndHideButtons() {
+        mLoadingIndicator.setVisibility(View.VISIBLE);
+        turnButtons(false);
+    }
+
+    private void hideLoadingIndicatorAndShowButtons() {
+        mLoadingIndicator.setVisibility(View.INVISIBLE);
+        turnButtons(true);
     }
 
     public void onClick(View v) {

@@ -21,11 +21,12 @@ import java.util.Scanner;
 public class NetworkUtils {
 
     private static final String TAG = NetworkUtils.class.getSimpleName();
+    private static final int CONNECT_TIMEOUT_MILLIS = 10000;
 
     /**
      * Build url. Example: http://172.16.0.200/?b=1
      *
-     * @param context ApplicationContext
+     * @param context    ApplicationContext
      * @param queryValue http request param value
      * @return URL
      */
@@ -59,7 +60,7 @@ public class NetworkUtils {
 
     public static String getResponseFromHttpUrl(URL url) throws IOException {
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-        urlConnection.setConnectTimeout(10000);
+        urlConnection.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
         try {
             InputStream in = urlConnection.getInputStream();
 
