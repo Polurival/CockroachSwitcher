@@ -27,8 +27,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final int GET_REQUEST_LOADER_ID = 38;
+    private static final String HTTP_ERROR = "error";
 
-    private String mGetResponse;
+    private String mQueryUrlString = null; // для предотвращения запроса после нажатия home и затем возвращения в приложение
+    private String mGetResponse = null; // может использоваться как кэш, но в данном случае нужно только хранить результат запроса
 
     private ProgressBar mLoadingIndicator;
     private Button mButton1;
@@ -39,6 +41,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.i(TAG, "onCreate()");
         setContentView(R.layout.activity_main);
 
         initLoadingIndicator();
@@ -49,8 +52,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         mButton4 = (Button) findViewById(R.id.button_four);
 
         if (savedInstanceState != null) {
-            boolean isLoadingStarted = savedInstanceState.getBoolean(getString(R.string.is_loading_bundle_key));
-            if (isLoadingStarted) {
+            mQueryUrlString = savedInstanceState.getString(getString(R.string.is_loading_bundle_key));
+            if (!TextUtils.isEmpty(mQueryUrlString)) {
                 showLoadingIndicatorAndHideButtons();
             }
         }
@@ -63,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     protected void onResume() {
         super.onResume();
+        Log.i(TAG, "onResume()");
         checkForCrashes();
         Tracking.startUsage(this);
     }
@@ -70,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public void onPause() {
         super.onPause();
+        Log.i(TAG, "onPause()");
         unregisterManagers();
         Tracking.stopUsage(this);
     }
@@ -77,24 +82,28 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public void onDestroy() {
         super.onDestroy();
+        Log.i(TAG, "onDestroy()");
         unregisterManagers();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        boolean isLoadingStarted = getSupportLoaderManager().getLoader(GET_REQUEST_LOADER_ID).isStarted();
-        outState.putBoolean(getString(R.string.is_loading_bundle_key), isLoadingStarted);
+        outState.putString(getString(R.string.is_loading_bundle_key), mQueryUrlString);
+
+        Log.i(TAG, "onSaveInstanceState() " + mQueryUrlString);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+        Log.i(TAG, "onCreateOptionsMenu()");
         getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        Log.i(TAG, "onOptionsItemSelected()");
         if (item.getItemId() == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
@@ -105,6 +114,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public Loader<String> onCreateLoader(int id, final Bundle args) {
         return new AsyncTaskLoader<String>(this) {
+
             @Override
             protected void onStartLoading() {
                 if (args == null) {
@@ -112,7 +122,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 }
                 Log.i(TAG, "onCreateLoader() with url");
 
-                mGetResponse = null; // сбрасываем кэш;
                 showLoadingIndicatorAndHideButtons();
 
                 if (mGetResponse != null) {
@@ -124,18 +133,18 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
             @Override
             public String loadInBackground() {
-                String queryUrlString = args.getString(getString(R.string.get_request_query_key));
-                if (queryUrlString == null || TextUtils.isEmpty(queryUrlString)) {
+                mQueryUrlString = args.getString(getString(R.string.get_request_query_key));
+                if (mQueryUrlString == null || TextUtils.isEmpty(mQueryUrlString)) {
                     return null;
                 }
-                Log.i(TAG, "loadInBackground() " + queryUrlString);
+                Log.i(TAG, "loadInBackground() " + mQueryUrlString);
 
                 try {
-                    URL url = new URL(queryUrlString);
+                    URL url = new URL(mQueryUrlString);
                     return NetworkUtils.getResponseFromHttpUrl(url);
                 } catch (IOException e) {
                     Log.e(TAG, "getResponseFromHttpUrl() error");
-                    return null;
+                    return HTTP_ERROR;
                 }
             }
 
@@ -143,6 +152,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             public void deliverResult(String getResponse) {
                 Log.i(TAG, "deliverResult()");
                 mGetResponse = getResponse;
+                mQueryUrlString = null;
+                hideLoadingIndicatorAndShowButtons();
                 super.deliverResult(getResponse);
             }
         };
@@ -153,7 +164,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         Log.i(TAG, "onLoadFinished() " + response);
         hideLoadingIndicatorAndShowButtons();
 
-        if (response == null) {
+        if (HTTP_ERROR.equals(response) && !TextUtils.isEmpty(mQueryUrlString)) {
             Snackbar.make(findViewById(R.id.activity_main), getString(R.string.connection_error), Snackbar.LENGTH_LONG)
                     .show();
         } else {
@@ -181,13 +192,19 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     private void showLoadingIndicatorAndHideButtons() {
-        mLoadingIndicator.setVisibility(View.VISIBLE);
-        turnButtons(false);
+        if (mLoadingIndicator.getVisibility() == View.INVISIBLE) {
+            Log.i(TAG, "showLoadingIndicatorAndHideButtons()");
+            mLoadingIndicator.setVisibility(View.VISIBLE);
+            turnButtons(false);
+        }
     }
 
     private void hideLoadingIndicatorAndShowButtons() {
-        mLoadingIndicator.setVisibility(View.INVISIBLE);
-        turnButtons(true);
+        if (mLoadingIndicator.getVisibility() == View.VISIBLE) {
+            Log.i(TAG, "hideLoadingIndicatorAndShowButtons()");
+            mLoadingIndicator.setVisibility(View.INVISIBLE);
+            turnButtons(true);
+        }
     }
 
     public void onClick(View v) {
@@ -215,13 +232,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         Bundle queryBundle = new Bundle();
         queryBundle.putString(getString(R.string.get_request_query_key), queryUrl.toString());
 
-        LoaderManager loaderManager = getSupportLoaderManager();
-        Loader<String> getRequestLoader = loaderManager.getLoader(GET_REQUEST_LOADER_ID);
-        if (getRequestLoader == null) {
-            loaderManager.initLoader(GET_REQUEST_LOADER_ID, queryBundle, this);
-        } else {
-            loaderManager.restartLoader(GET_REQUEST_LOADER_ID, queryBundle, this);
-        }
+        mGetResponse = null; // обнулить чтобы срабатывал метод forceLoad();
+        getSupportLoaderManager().restartLoader(GET_REQUEST_LOADER_ID, queryBundle, this);
     }
 
     private void turnButtons(boolean isOn) {
