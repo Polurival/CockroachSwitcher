@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center">
+
+    <Button
+        android:id="@+id/button_one"
+        style="@style/WidgetButtonTheme"
+        android:layout_width="@dimen/widget_button_width"
+        android:layout_height="wrap_content"
+        android:text="@string/button_one_text"/>
+
+    <Button
+        android:id="@+id/button_two"
+        style="@style/WidgetButtonTheme"
+        android:layout_width="@dimen/widget_button_width"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@id/button_one"
+        android:text="@string/button_two_text"/>
+
+    <Button
+        android:id="@+id/button_three"
+        style="@style/WidgetButtonTheme"
+        android:layout_width="@dimen/widget_button_width"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_one"
+        android:text="@string/button_three_text"/>
+
+    <Button
+        android:id="@+id/button_four"
+        style="@style/WidgetButtonTheme"
+        android:layout_width="@dimen/widget_button_width"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_two"
+        android:layout_toRightOf="@id/button_three"
+        android:text="@string/button_four_text"/>
+
+</RelativeLayout>
