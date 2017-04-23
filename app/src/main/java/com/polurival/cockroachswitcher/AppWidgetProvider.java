@@ -6,11 +6,13 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.support.annotation.LayoutRes;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
@@ -27,17 +29,19 @@ public class AppWidgetProvider extends android.appwidget.AppWidgetProvider {
     private static final String THREE = "3";
     private static final String FOUR = "4";
 
+    private RemoteViews mRemoteViews;
+    private ComponentName mWatchWidget;
+
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
-        RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.appwidget_provider_layout);
-        ComponentName watchWidget = new ComponentName(context, AppWidgetProvider.class);
+        initWidgetLayout(context, R.layout.appwidget_provider_layout);
 
-        remoteViews.setOnClickPendingIntent(R.id.button_one, getPendingSelfIntent(context, ONE));
-        remoteViews.setOnClickPendingIntent(R.id.button_two, getPendingSelfIntent(context, TWO));
-        remoteViews.setOnClickPendingIntent(R.id.button_three, getPendingSelfIntent(context, THREE));
-        remoteViews.setOnClickPendingIntent(R.id.button_four, getPendingSelfIntent(context, FOUR));
+        mRemoteViews.setOnClickPendingIntent(R.id.button_one, getPendingSelfIntent(context, ONE));
+        mRemoteViews.setOnClickPendingIntent(R.id.button_two, getPendingSelfIntent(context, TWO));
+        mRemoteViews.setOnClickPendingIntent(R.id.button_three, getPendingSelfIntent(context, THREE));
+        mRemoteViews.setOnClickPendingIntent(R.id.button_four, getPendingSelfIntent(context, FOUR));
 
-        appWidgetManager.updateAppWidget(watchWidget, remoteViews);
+        updateWidget(context);
     }
 
     @Override
@@ -62,6 +66,16 @@ public class AppWidgetProvider extends android.appwidget.AppWidgetProvider {
         }
     }
 
+    private void initWidgetLayout(Context context, @LayoutRes int appwidgetProviderLayout) {
+        mRemoteViews = new RemoteViews(context.getPackageName(), appwidgetProviderLayout);
+        mWatchWidget = new ComponentName(context, AppWidgetProvider.class);
+    }
+
+    private void updateWidget(Context context) {
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+        appWidgetManager.updateAppWidget(mWatchWidget, mRemoteViews);
+    }
+
     protected PendingIntent getPendingSelfIntent(Context context, String action) {
         Intent intent = new Intent(context, getClass());
         intent.setAction(action);
@@ -82,14 +96,14 @@ public class AppWidgetProvider extends android.appwidget.AppWidgetProvider {
             try {
                 return NetworkUtils.getResponseFromHttpUrl(queryUrl);
             } catch (IOException e) {
-                return null;
+                return String.valueOf(HttpURLConnection.HTTP_GATEWAY_TIMEOUT);
             }
         }
 
         @Override
         protected void onPostExecute(String result) {
             super.onPostExecute(result);
-            if (result == null) {
+            if (String.valueOf(HttpURLConnection.HTTP_GATEWAY_TIMEOUT).equals(result)) {
                 Toast.makeText(mContext, mContext.getString(R.string.connection_error), Toast.LENGTH_SHORT)
                         .show();
             } else {

@@ -20,6 +20,7 @@ import net.hockeyapp.android.Tracking;
 import net.hockeyapp.android.UpdateManager;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String> {
@@ -27,7 +28,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final int GET_REQUEST_LOADER_ID = 38;
-    private static final String HTTP_ERROR = "error";
 
     private String mQueryUrlString = null; // для предотвращения запроса после нажатия home и затем возвращения в приложение
     private String mGetResponse = null; // может использоваться как кэш, но в данном случае нужно только хранить результат запроса
@@ -144,7 +144,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                     return NetworkUtils.getResponseFromHttpUrl(url);
                 } catch (IOException e) {
                     Log.e(TAG, "getResponseFromHttpUrl() error");
-                    return HTTP_ERROR;
+                    return String.valueOf(HttpURLConnection.HTTP_GATEWAY_TIMEOUT);
                 }
             }
 
@@ -164,7 +164,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         Log.i(TAG, "onLoadFinished() " + response);
         hideLoadingIndicatorAndShowButtons();
 
-        if (HTTP_ERROR.equals(response) && !TextUtils.isEmpty(mQueryUrlString)) {
+        if (String.valueOf(HttpURLConnection.HTTP_GATEWAY_TIMEOUT).equals(response)) {
             Snackbar.make(findViewById(R.id.activity_main), getString(R.string.connection_error), Snackbar.LENGTH_LONG)
                     .show();
         } else {
